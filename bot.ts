@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'fs';
+import { BskyAgent } from '@atproto/api';
 
 // Configuration from environment variables
 const config = {
@@ -144,52 +145,28 @@ async function postToBluesky(story: Story): Promise<void> {
     throw new Error('Bluesky credentials not configured');
   }
   
-  // Create session
-  const createSessionResponse = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      identifier: config.blueskyUsername,
-      password: config.blueskyPassword,
-    }),
+  // Create Bluesky Agent
+  const agent = new BskyAgent({
+    service: 'https://bsky.social',
   });
   
-  if (!createSessionResponse.ok) {
-    throw new Error(`Bluesky auth failed: ${createSessionResponse.status}`);
-  }
-  
-  const session = await createSessionResponse.json();
+  // Login to Bluesky
+  await agent.login({
+    identifier: config.blueskyUsername,
+    password: config.blueskyPassword,
+  });
   
   // Format post with markdown link for discussion
   const postText = `📰 ${story.title}
 
 🔗 ${story.url}
 
-💬 [Discuss on HN](${story.hnUrl})
-
-#hackernews`;
+💬 [Discuss on HN](${story.hnUrl})`;
   
-  // Create post
-  const postResponse = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.accessJwt}`,
-    },
-    body: JSON.stringify({
-      repo: session.did,
-      collection: 'app.bsky.feed.post',
-      record: {
-        text: postText,
-        createdAt: new Date().toISOString(),
-      },
-    }),
+  // Create post using the official SDK
+  await agent.post({
+    text: postText,
   });
-  
-  if (!postResponse.ok) {
-    const errorText = await postResponse.text();
-    throw new Error(`Bluesky post failed: ${postResponse.status} ${errorText}`);
-  }
   
   log(`Post successful: "${story.title}" (ID: ${story.id}, Score: ${story.score})`);
 }
