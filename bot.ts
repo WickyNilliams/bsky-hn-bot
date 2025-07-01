@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'fs';
-import { BskyAgent } from '@atproto/api';
+import { BskyAgent, RichText } from '@atproto/api';
 
 // Configuration from environment variables
 const config = {
@@ -156,16 +156,25 @@ async function postToBluesky(story: Story): Promise<void> {
     password: config.blueskyPassword,
   });
   
-  // Format post with markdown link for discussion
+  // Format post text with proper links
   const postText = `📰 ${story.title}
 
 🔗 ${story.url}
 
-💬 [Discuss on HN](${story.hnUrl})`;
-  
-  // Create post using the official SDK
-  await agent.post({
+💬 Discuss on HN: ${story.hnUrl}`;
+
+  // Create RichText object to handle links properly
+  const richText = new RichText({
     text: postText,
+  });
+  
+  // Parse facets (links, mentions, hashtags)
+  await richText.detectFacets(agent);
+  
+  // Create post using the official SDK with rich text
+  await agent.post({
+    text: richText.text,
+    facets: richText.facets,
   });
   
   log(`Post successful: "${story.title}" (ID: ${story.id}, Score: ${story.score})`);
