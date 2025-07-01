@@ -1,0 +1,27 @@
+{
+  "name": "hn-bluesky-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A bot that posts high-scoring Hacker News stories to Bluesky",
+  "main": "bot.ts",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types bot.ts",
+    "dev": "DRY_RUN=true node --experimental-strip-types bot.ts",
+    "test": "node --experimental-strip-types bot.ts test-state.json"
+  },
+  "keywords": [
+    "hackernews",
+    "bluesky",
+    "bot",
+    "rss",
+    "automation"
+  ],
+  "author": "Nick Williams",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
