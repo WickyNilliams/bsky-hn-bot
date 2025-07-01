@@ -16,7 +16,7 @@ env:
   MIN_SCORE: 100
   POSTS_PER_RUN: 1
   MAX_STORY_AGE_HOURS: 48
-  DRY_RUN: true
+  DRY_RUN: false
 
 jobs:
   run-bot:
