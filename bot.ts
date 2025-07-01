@@ -156,20 +156,44 @@ async function postToBluesky(story: Story): Promise<void> {
     password: config.blueskyPassword,
   });
   
-  // Format post text with proper links
+  // Format post text with "Discuss on HN" as linkable text
   const postText = `📰 ${story.title}
 
 🔗 ${story.url}
 
-💬 Discuss on HN: ${story.hnUrl}`;
+💬 Discuss on HN`;
 
   // Create RichText object to handle links properly
   const richText = new RichText({
     text: postText,
   });
   
-  // Parse facets (links, mentions, hashtags)
+  // Parse facets for the article URL
   await richText.detectFacets(agent);
+  
+  // Manually add facet for "Discuss on HN" link
+  const discussText = "Discuss on HN";
+  const discussStart = postText.lastIndexOf(discussText);
+  const discussEnd = discussStart + discussText.length;
+  
+  // Convert string positions to UTF-8 byte positions
+  const textEncoder = new TextEncoder();
+  const beforeDiscuss = postText.slice(0, discussStart);
+  const byteStart = textEncoder.encode(beforeDiscuss).length;
+  const byteEnd = textEncoder.encode(postText.slice(0, discussEnd)).length;
+  
+  // Add the HN discussion link facet
+  if (!richText.facets) richText.facets = [];
+  richText.facets.push({
+    index: {
+      byteStart,
+      byteEnd,
+    },
+    features: [{
+      $type: 'app.bsky.richtext.facet#link',
+      uri: story.hnUrl,
+    }],
+  });
   
   // Create post using the official SDK with rich text
   await agent.post({
