@@ -13,12 +13,12 @@ The bot uses a drip-feed approach, posting only the oldest unprocessed story eac
 
 ## Features
 
-- ✅ **Zero infrastructure costs** - runs entirely on GitHub Actions
-- ✅ **Configurable thresholds** - set minimum story scores via environment variables
-- ✅ **Age filtering** - automatically skips stale content after downtime
-- ✅ **Retry logic** - handles temporary failures gracefully
-- ✅ **Dry run mode** - test safely without posting
-- ✅ **Rich formatting** - includes emojis, links, and hashtags
+ **Zero infrastructure costs** - runs entirely on GitHub Actions
+- **Configurable thresholds** - set minimum story scores via environment variables
+- **Age filtering** - automatically skips stale content after downtime
+- **Retry logic** - handles temporary failures gracefully
+- **Dry run mode** - test safely without posting
+- **Rich formatting**
 
 ## Post Format
 
@@ -28,8 +28,6 @@ The bot uses a drip-feed approach, posting only the oldest unprocessed story eac
 🔗 https://example.com/article
 
 💬 [Discuss on HN](https://news.ycombinator.com/item?id=12345)
-
-#hackernews
 ```
 
 ## Setup
@@ -42,7 +40,7 @@ Click the "Fork" button to create your own copy of this bot.
 
 In your fork, go to **Settings → Secrets and variables → Actions** and add:
 
-- `BLUESKY_USERNAME`: Your Bluesky handle (e.g., `mybot.bsky.social`)
+- `BLUESKY_USERNAME`: Your Bluesky username (e.g. your email `whatever@example.ory`)
 - `BLUESKY_PASSWORD`: An app password from your Bluesky account settings
 
 ### 3. Create Initial State File
