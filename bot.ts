@@ -258,6 +258,7 @@ async function main() {
     
     if (config.dryRun) {
       log(`Dry run: Would post "${storyToPost.title}" (ID: ${storyToPost.id}, Score: ${storyToPost.score})`);
+      log('Dry run: State not updated');
     } else {
       log(`Posting story: "${storyToPost.title}" (ID: ${storyToPost.id}, Score: ${storyToPost.score})`);
       
@@ -267,11 +268,11 @@ async function main() {
         2000,
         'Posting to Bluesky'
       );
+      
+      // Update and save state only after successful posting
+      state.lastStoryId = storyToPost.id;
+      saveState(stateFile, state);
     }
-    
-    // Update and save state
-    state.lastStoryId = storyToPost.id;
-    saveState(stateFile, state);
     
   } catch (error) {
     log(`Bot execution failed: ${error.message}`);
