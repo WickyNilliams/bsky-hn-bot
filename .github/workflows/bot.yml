@@ -1,0 +1,54 @@
+name: HN to Bluesky Bot
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+# Required for committing state changes
+permissions:
+  contents: write
+
+env:
+  MIN_SCORE: 100
+  POSTS_PER_RUN: 1
+  MAX_STORY_AGE_HOURS: 48
+  DRY_RUN: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run HN to Bluesky bot
+      env:
+        BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }}
+        BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }}
+      run: node --experimental-strip-types bot.ts last-processed.json
+      
+    - name: Commit state changes
+      if: success()
+      run: |
+        git config user.name "HN Bot"
+        git config user.email "action@github.com"
+        git add last-processed.json
+        if git diff --staged --quiet; then
+          echo "No state changes to commit"
+        else
+          git commit -m "Update last processed story ID"
+          git push
+        fi
