@@ -3,10 +3,9 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { BskyAgent, RichText } from '@atproto/api';
 
-// Configuration from environment variables
+  // Configuration from environment variables
 const config = {
   minScore: parseInt(process.env.MIN_SCORE || '100'),
-  postsPerRun: parseInt(process.env.POSTS_PER_RUN || '1'),
   maxStoryAgeHours: parseInt(process.env.MAX_STORY_AGE_HOURS || '48'),
   dryRun: process.env.DRY_RUN === 'true',
   blueskyUsername: process.env.BLUESKY_USERNAME,
@@ -19,7 +18,6 @@ interface Story {
   title: string;
   url: string;
   hnUrl: string;
-  score: number;
   publishedAt: Date;
 }
 
@@ -82,56 +80,36 @@ function saveState(filepath: string, state: BotState): void {
 
 // RSS parsing
 async function fetchRSSFeed(): Promise<Story[]> {
-  const rssUrl = `https://hnrss.org/frontpage?points=${config.minScore}`;
+  const jsonUrl = `https://hnrss.org/newest.jsonfeed?points=${config.minScore}`;
   
-  const response = await fetch(rssUrl);
+  const response = await fetch(jsonUrl);
   if (!response.ok) {
-    throw new Error(`RSS fetch failed: ${response.status} ${response.statusText}`);
+    throw new Error(`JSON feed fetch failed: ${response.status} ${response.statusText}`);
   }
   
-  const rssText = await response.text();
+  const jsonData = await response.json();
   
-  // Parse RSS XML manually (simple approach for HN RSS format)
+  // Parse JSON feed format
   const stories: Story[] = [];
-  const itemRegex = /<item>(.*?)<\/item>/gs;
-  let match;
   
-  while ((match = itemRegex.exec(rssText)) !== null) {
-    const item = match[1];
-    
-    // Extract fields using regex
-    const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-    const linkMatch = item.match(/<link>(.*?)<\/link>/);
-    const commentsMatch = item.match(/<comments>(.*?)<\/comments>/);
-    const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-    
-    if (!titleMatch || !linkMatch || !commentsMatch || !pubDateMatch) {
-      continue;
-    }
-    
-    // Extract story ID from comments URL
-    const commentsUrl = commentsMatch[1];
-    const idMatch = commentsUrl.match(/item\?id=(\d+)/);
+  for (const item of jsonData.items || []) {
+    // Extract story ID from the item URL or id field
+    const idMatch = item.id?.match(/\/(\d+)$/) || item.url?.match(/id=(\d+)/);
     if (!idMatch) continue;
     
     const id = parseInt(idMatch[1]);
-    const title = titleMatch[1];
-    const url = linkMatch[1];
-    const publishedAt = new Date(pubDateMatch[1]);
+    const title = item.title || '';
+    const url = item.url || '';
+    const publishedAt = new Date(item.date_published || item.date_modified || Date.now());
     
-    // Extract score from title (format: "Title (123 points)")
-    const scoreMatch = title.match(/\((\d+) points?\)$/);
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
-    
-    // Clean title (remove score suffix)
-    const cleanTitle = title.replace(/\s*\(\d+ points?\)$/, '');
+    // Build HN URL from story ID
+    const hnUrl = `https://news.ycombinator.com/item?id=${id}`;
     
     stories.push({
       id,
-      title: cleanTitle,
+      title,
       url,
-      hnUrl: commentsUrl,
-      score,
+      hnUrl,
       publishedAt,
     });
   }
@@ -201,7 +179,7 @@ async function postToBluesky(story: Story): Promise<void> {
     facets: richText.facets,
   });
   
-  log(`Post successful: "${story.title}" (ID: ${story.id}, Score: ${story.score})`);
+  log(`Post successful: "${story.title}" (ID: ${story.id})`);
 }
 
 // Main logic
@@ -267,10 +245,10 @@ async function main() {
     const storyToPost = freshStories[0];
     
     if (config.dryRun) {
-      log(`Dry run: Would post "${storyToPost.title}" (ID: ${storyToPost.id}, Score: ${storyToPost.score})`);
+      log(`Dry run: Would post "${storyToPost.title}" (ID: ${storyToPost.id})`);
       log('Dry run: State not updated');
     } else {
-      log(`Posting story: "${storyToPost.title}" (ID: ${storyToPost.id}, Score: ${storyToPost.score})`);
+      log(`Posting story: "${storyToPost.title}" (ID: ${storyToPost.id})`);
       
       await retryWithBackoff(
         () => postToBluesky(storyToPost),
