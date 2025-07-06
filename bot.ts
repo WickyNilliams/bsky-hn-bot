@@ -31,6 +31,22 @@ function log(message: string) {
   console.log(`[${timestamp}] ${message}`);
 }
 
+function extractStoryId(itemId: string | undefined): number | null {
+  if (!itemId) return null;
+  
+  try {
+    const url = new URL(itemId);
+    const storyIdParam = url.searchParams.get('id');
+    if (!storyIdParam) return null;
+    
+    const storyId = parseInt(storyIdParam);
+    return isNaN(storyId) ? null : storyId;
+  } catch (error) {
+    // Skip malformed URLs
+    return null;
+  }
+}
+
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -89,27 +105,27 @@ async function fetchRSSFeed(): Promise<Story[]> {
   
   const jsonData = await response.json();
   
+  // Debug: log the feed structure
+  log(`JSON feed items count: ${jsonData.items?.length || 0}`);
+  if (!jsonData.items || jsonData.items.length === 0) {
+    log(`JSON feed structure: ${JSON.stringify(jsonData, null, 2).slice(0, 500)}...`);
+  }
+  
   // Parse JSON feed format
   const stories: Story[] = [];
   
   for (const item of jsonData.items || []) {
-    // Extract story ID from the item.id field
-    const idMatch = item.id?.match(/id=(\d+)/);
-    if (!idMatch) continue;
-    
-    const id = parseInt(idMatch[1]);
+    const id = extractStoryId(item.id);
+    if (id === null) continue;
     const title = item.title || '';
     const url = item.url || '';
     const publishedAt = new Date(item.date_published || item.date_modified || Date.now());
-    
-    // Build HN URL from story ID
-    const hnUrl = `https://news.ycombinator.com/item?id=${id}`;
     
     stories.push({
       id,
       title,
       url,
-      hnUrl,
+      hnUrl: item.id,
       publishedAt,
     });
   }
