@@ -89,12 +89,6 @@ async function fetchRSSFeed(): Promise<Story[]> {
   
   const jsonData = await response.json();
   
-  // Debug: log the feed structure
-  log(`JSON feed items count: ${jsonData.items?.length || 0}`);
-  if (!jsonData.items || jsonData.items.length === 0) {
-    log(`JSON feed structure: ${JSON.stringify(jsonData, null, 2).slice(0, 500)}...`);
-  }
-  
   // Parse JSON feed format
   const stories: Story[] = [];
   
