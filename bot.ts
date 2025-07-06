@@ -89,12 +89,18 @@ async function fetchRSSFeed(): Promise<Story[]> {
   
   const jsonData = await response.json();
   
+  // Debug: log the feed structure
+  log(`JSON feed items count: ${jsonData.items?.length || 0}`);
+  if (!jsonData.items || jsonData.items.length === 0) {
+    log(`JSON feed structure: ${JSON.stringify(jsonData, null, 2).slice(0, 500)}...`);
+  }
+  
   // Parse JSON feed format
   const stories: Story[] = [];
   
   for (const item of jsonData.items || []) {
-    // Extract story ID from the item URL or id field
-    const idMatch = item.id?.match(/\/(\d+)$/) || item.url?.match(/id=(\d+)/);
+    // Extract story ID from the item.id field
+    const idMatch = item.id?.match(/id=(\d+)/);
     if (!idMatch) continue;
     
     const id = parseInt(idMatch[1]);
@@ -221,6 +227,8 @@ async function main() {
     const freshStories = newStories.filter(story => {
       const ageMs = now.getTime() - story.publishedAt.getTime();
       const ageHours = ageMs / (60 * 60 * 1000);
+      
+      log(`Story ID ${story.id}: published ${story.publishedAt.toISOString()}, age: ${ageHours.toFixed(1)}h`);
       
       if (ageMs > maxAgeMs) {
         log(`Skipping story ID ${story.id} (age: ${ageHours.toFixed(1)}h, max: ${config.maxStoryAgeHours}h)`);
