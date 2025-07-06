@@ -3,7 +3,6 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { BskyAgent, RichText } from '@atproto/api';
 
-  // Configuration from environment variables
 const config = {
   minScore: parseInt(process.env.MIN_SCORE || '100'),
   maxStoryAgeHours: parseInt(process.env.MAX_STORY_AGE_HOURS || '48'),
@@ -12,7 +11,6 @@ const config = {
   blueskyPassword: process.env.BLUESKY_PASSWORD,
 };
 
-// Types
 interface Story {
   id: number;
   title: string;
@@ -25,7 +23,6 @@ interface BotState {
   lastStoryId: number;
 }
 
-// Utility functions
 function log(message: string) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${message}`);
@@ -42,7 +39,6 @@ function extractStoryId(itemId: string | undefined): number | null {
     const storyId = parseInt(storyIdParam);
     return isNaN(storyId) ? null : storyId;
   } catch (error) {
-    // Skip malformed URLs
     return null;
   }
 }
@@ -78,7 +74,6 @@ async function retryWithBackoff<T>(
   throw lastError!;
 }
 
-// State management
 function loadState(filepath: string): BotState {
   try {
     const content = readFileSync(filepath, 'utf8');
@@ -94,7 +89,6 @@ function saveState(filepath: string, state: BotState): void {
   log(`State saved: lastStoryId = ${state.lastStoryId}`);
 }
 
-// RSS parsing
 async function fetchRSSFeed(): Promise<Story[]> {
   const jsonUrl = `https://hnrss.org/newest.jsonfeed?points=${config.minScore}`;
   
@@ -104,14 +98,6 @@ async function fetchRSSFeed(): Promise<Story[]> {
   }
   
   const jsonData = await response.json();
-  
-  // Debug: log the feed structure
-  log(`JSON feed items count: ${jsonData.items?.length || 0}`);
-  if (!jsonData.items || jsonData.items.length === 0) {
-    log(`JSON feed structure: ${JSON.stringify(jsonData, null, 2).slice(0, 500)}...`);
-  }
-  
-  // Parse JSON feed format
   const stories: Story[] = [];
   
   for (const item of jsonData.items || []) {
@@ -133,24 +119,20 @@ async function fetchRSSFeed(): Promise<Story[]> {
   return stories.sort((a, b) => a.id - b.id); // Sort by ID ascending
 }
 
-// Bluesky posting
 async function postToBluesky(story: Story): Promise<void> {
   if (!config.blueskyUsername || !config.blueskyPassword) {
     throw new Error('Bluesky credentials not configured');
   }
   
-  // Create Bluesky Agent
   const agent = new BskyAgent({
     service: 'https://bsky.social',
   });
   
-  // Login to Bluesky
   await agent.login({
     identifier: config.blueskyUsername,
     password: config.blueskyPassword,
   });
   
-  // Format post text with "Discuss on HN" as linkable text
   const postText = `📰 ${story.title}
 
 🔗 ${story.url}
@@ -161,8 +143,6 @@ async function postToBluesky(story: Story): Promise<void> {
   const richText = new RichText({
     text: postText,
   });
-  
-  // Parse facets for the article URL
   await richText.detectFacets(agent);
   
   // Manually add facet for "Discuss on HN" link
@@ -188,8 +168,7 @@ async function postToBluesky(story: Story): Promise<void> {
       uri: story.hnUrl,
     }],
   });
-  
-  // Create post using the official SDK with rich text
+
   await agent.post({
     text: richText.text,
     facets: richText.facets,
@@ -198,21 +177,17 @@ async function postToBluesky(story: Story): Promise<void> {
   log(`Post successful: "${story.title}" (ID: ${story.id})`);
 }
 
-// Main logic
 async function main() {
   log('Starting HN to Bluesky bot');
   log(`Config: minScore=${config.minScore}, maxAge=${config.maxStoryAgeHours}h, dryRun=${config.dryRun}`);
   
   try {
-    // Get state file path from command line args
     const stateFile = process.argv[2] || 'last-processed.json';
     log(`Using state file: ${stateFile}`);
     
-    // Load state
     const state = loadState(stateFile);
     log(`Current state: lastStoryId=${state.lastStoryId}`);
     
-    // Fetch RSS feed with retries
     const stories = await retryWithBackoff(
       fetchRSSFeed,
       3,
@@ -222,7 +197,6 @@ async function main() {
     
     log(`Found ${stories.length} stories in RSS feed`);
     
-    // Filter new stories
     const newStories = stories.filter(story => story.id > state.lastStoryId);
     log(`Found ${newStories.length} new stories above threshold`);
     
@@ -231,7 +205,6 @@ async function main() {
       return;
     }
     
-    // Filter by age
     const now = new Date();
     const maxAgeMs = config.maxStoryAgeHours * 60 * 60 * 1000;
     const freshStories = newStories.filter(story => {
@@ -275,18 +248,15 @@ async function main() {
         'Posting to Bluesky'
       );
       
-      // Update and save state only after successful posting
       state.lastStoryId = storyToPost.id;
       saveState(stateFile, state);
-    }
-    
+    } 
   } catch (error) {
     log(`Bot execution failed: ${error.message}`);
     process.exit(1);
   }
 }
 
-// Run the bot
 main().catch(error => {
   log(`Unhandled error: ${error.message}`);
   process.exit(1);
